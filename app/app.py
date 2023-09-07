@@ -8,6 +8,7 @@ app = Flask(__name__)
 
 # main functions =======================================================
 
+# target_keywords
 heatMarker_wrap_property = "heatMarkerRenderer"
 heatMarker_score_property = "heatMarkerIntensityScoreNormalized"
 heatMarker_timeRange_property = "timeRangeStartMillis"
@@ -32,37 +33,25 @@ def get_script_tag(youtube_link):
 # target_keywordのvalueを読み取る
 def get_property_values(script_tag):
     parsed_js = js2xml.parse(script_tag)
-    result = []
 
     for prop in parsed_js.xpath(f'//property[@name="{heatMarker_wrap_property}"]'):
-        property_values = []
         start_time = prop.xpath(f'.//property[@name="{heatMarker_timeRange_property}"]/number/@value')[0]
         score = prop.xpath(f'.//property[@name="{heatMarker_score_property}"]/number/@value')[0]
-        property_values.append(start_time)
-        property_values.append(score)
+        if score == "1":
+            break
+    
+    return start_time
 
-        result.append(f"start_time: {start_time}, score: {score}")
-        # result.append(score)
+def generate_youtube_url(start_time_ms, youtube_link):
+    result = ""
+
+    start_time_s = int(start_time_ms) / 1000
+
+    result = youtube_link + "&t=" + str(start_time_s) + "s"
 
     return result
 
-# script_tagからtarget_keywordが含まれる配列を取り出す
-def get_objectArrays(script_tag):
-
-    property_values_array = []
-
-    property_values = get_property_values(script_tag)
-
-    if property_values:
-        for value in property_values:
-            property_values_array.append(value)
-    
-    result = "\n".join(property_values_array)
-
-    return(result)
-
-
-# main functions =======================================================
+# ======================================================================
 
 @app.route("/")
 def hello():
@@ -80,9 +69,10 @@ def process_youtube_link():
         youtube_link = data.get('youtube_link')
 
         script_tag = get_script_tag(youtube_link)
-        objectArrays_in_script_tag = get_objectArrays(script_tag)
+        start_time = get_property_values(script_tag)
+        url = generate_youtube_url(start_time, youtube_link)
 
-        return(objectArrays_in_script_tag)
+        return(url)
 
     except Exception as e:
         return jsonify({'error': str(e)}), 400
